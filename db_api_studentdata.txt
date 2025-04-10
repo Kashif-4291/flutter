@@ -1,0 +1,172 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
+import 'dart:io';
+
+class DatabaseHelper {
+  DatabaseHelper._();
+  static final DatabaseHelper instance = DatabaseHelper._();
+  static Database? _database;
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB();
+    return _database!;
+  }
+
+  Future<Database> _initDB() async {
+    Directory documentsDirectory = await getApplicationDocumentsDirectory();
+    String path = join(documentsDirectory.path, "users.db");
+
+    return await openDatabase(
+      path,
+      version: 2, // <- updated version
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT,
+            marks INTEGER,
+            credit_hours INTEGER,
+            grade TEXT
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS api_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            coursecode TEXT,
+            coursetitle TEXT,
+            credithours INTEGER,
+            obtainedmarks INTEGER,
+            mysemester TEXT,
+            consider_status TEXT,
+            rollno TEXT,
+            subject_name TEXT,
+            semester TEXT,
+            credit_hours_form1 INTEGER,
+            marks_form1 INTEGER
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await db.execute("ALTER TABLE api_data ADD COLUMN subject_name TEXT");
+        await db.execute("ALTER TABLE api_data ADD COLUMN semester TEXT");
+        await db.execute("ALTER TABLE api_data ADD COLUMN credit_hours_form1 INTEGER");
+        await db.execute("ALTER TABLE api_data ADD COLUMN marks_form1 INTEGER");
+      },
+    );
+  }
+
+  // ------------------ USER METHODS ------------------
+  Future<void> insertUser(String username, String password) async {
+    final db = await database;
+    try {
+      await db.insert(
+        'users',
+        {'username': username, 'password': password},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print("Error inserting user: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    final db = await database;
+    return await db.query('users');
+  }
+
+  // ------------------ GRADE METHODS ------------------
+  Future<void> insertGrade(String subject, int marks, int creditHours, String grade) async {
+    final db = await database;
+    try {
+      await db.insert(
+        'grades',
+        {
+          'subject': subject,
+          'marks': marks,
+          'credit_hours': creditHours,
+          'grade': grade,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print("Error inserting grade: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getGrades() async {
+    final db = await database;
+    return await db.query('grades');
+  }
+
+  // ------------------ API DATA METHODS ------------------
+  Future<void> insertApiData(List<Map<String, dynamic>> data) async {
+    final db = await database;
+    for (var item in data) {
+      await db.insert(
+        'api_data',
+        {
+          'coursecode': item['coursecode'],
+          'coursetitle': item['coursetitle'],
+          'credithours': item['credithours'],
+          'obtainedmarks': item['obtainedmarks'],
+          'mysemester': item['mysemester'],
+          'consider_status': item['consider_status'],
+          'rollno': item['rollno'],
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getApiData() async {
+    final db = await database;
+    return await db.query('api_data');
+  }
+
+  Future<void> deleteApiDataById(int id) async {
+    final db = await database;
+    await db.delete('api_data', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> clearApiData() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('api_data');
+    });
+  }
+
+  // ------------------ FORM1 DATA INSERT ------------------
+  Future<void> insertForm1Data({
+    required String subject,
+    required String semester,
+    required int creditHours,
+    required int marks,
+  }) async {
+    final db = await database;
+    try {
+      await db.insert(
+        'api_data',
+        {
+          'subject_name': subject,
+          'semester': semester,
+          'credit_hours_form1': creditHours,
+          'marks_form1': marks,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      print("Error inserting form1 data: $e");
+    }
+  }
+}

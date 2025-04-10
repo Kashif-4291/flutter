@@ -1,0 +1,101 @@
+import 'package:flutter/material.dart';
+import 'db.dart'; // Adjust path if needed
+
+class Form1Screen extends StatefulWidget {
+  const Form1Screen({super.key});
+
+  @override
+  State<Form1Screen> createState() => _Form1ScreenState();
+}
+
+class _Form1ScreenState extends State<Form1Screen> {
+  final List<String> subjects = ['OS', 'PP', 'NC', 'SE'];
+  final List<String> semesters = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+  final List<int> creditHours = [1, 2, 3, 4];
+
+  String? selectedSubject;
+  String? selectedSemester;
+  int? selectedCreditHour;
+  TextEditingController marksController = TextEditingController();
+
+  void handleSubmit() async {
+    if (selectedSubject == null || selectedSemester == null || selectedCreditHour == null || marksController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    int? marks = int.tryParse(marksController.text);
+    if (marks == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid marks')),
+      );
+      return;
+    }
+
+    await DatabaseHelper.instance.insertForm1Data(
+      subject: selectedSubject!,
+      semester: selectedSemester!,
+      creditHours: selectedCreditHour!,
+      marks: marks,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Data inserted into database')),
+    );
+
+    // Optionally clear form
+    setState(() {
+      selectedSubject = null;
+      selectedSemester = null;
+      selectedCreditHour = null;
+      marksController.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Form 1')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: 'Subject Name'),
+              value: selectedSubject,
+              items: subjects.map((subject) => DropdownMenuItem(value: subject, child: Text(subject))).toList(),
+              onChanged: (value) => setState(() => selectedSubject = value),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: 'Semester'),
+              value: selectedSemester,
+              items: semesters.map((sem) => DropdownMenuItem(value: sem, child: Text(sem))).toList(),
+              onChanged: (value) => setState(() => selectedSemester = value),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<int>(
+              decoration: const InputDecoration(labelText: 'Credit Hours'),
+              value: selectedCreditHour,
+              items: creditHours.map((ch) => DropdownMenuItem(value: ch, child: Text(ch.toString()))).toList(),
+              onChanged: (value) => setState(() => selectedCreditHour = value),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: marksController,
+              decoration: const InputDecoration(labelText: 'Marks'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: handleSubmit,
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
