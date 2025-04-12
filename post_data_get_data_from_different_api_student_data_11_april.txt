@@ -1,0 +1,269 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+class DataScreen extends StatefulWidget {
+  const DataScreen({super.key});
+
+  @override
+  State<DataScreen> createState() => _DataScreenState();
+}
+
+class _DataScreenState extends State<DataScreen> {
+  final TextEditingController _idController = TextEditingController();
+  final TextEditingController _marksController = TextEditingController();
+
+  String? _selectedSubject;
+  String? _selectedSemester;
+  String? _selectedCreditHour;
+
+  final List<String> subjects = ['OS', 'PP', 'NC', 'SE'];
+  final List<String> semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
+  final List<String> creditHours = ['1', '2', '3', '4'];
+
+  bool _isLoading = false;
+  List<dynamic> _fetchedData = [];
+
+  Future<void> _submitData() async {
+    final userId = int.tryParse(_idController.text.trim());
+    final marks = int.tryParse(_marksController.text.trim());
+
+    if (userId == null ||
+        _selectedSubject == null ||
+        _selectedSemester == null ||
+        _selectedCreditHour == null ||
+        marks == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields with valid data')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final url = Uri.parse("https://devtechtop.com/management/public/api/grades");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "user_id": userId,
+          "course_name": _selectedSubject!,
+          "semester_no": int.parse(_selectedSemester!),
+          "credit_hours": int.parse(_selectedCreditHour!),
+          "marks": marks,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data submitted successfully')),
+        );
+
+        _idController.clear();
+        _marksController.clear();
+        setState(() {
+          _selectedSubject = null;
+          _selectedSemester = null;
+          _selectedCreditHour = null;
+        });
+
+        await _fetchData(); // Reload data after submission
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${response.statusCode}\n${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit data: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final response = await http.get(
+        Uri.parse("https://devtechtop.com/management/public/api/select_data"),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonBody = json.decode(response.body);
+        final List<dynamic> data = jsonBody['data']; // Fix: Extract list from "data" key
+        setState(() {
+          _fetchedData = data;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch data: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching data: $e')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Grade Submission'),
+        backgroundColor: Colors.blue,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Submit Grade Data',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _idController,
+                            decoration: const InputDecoration(
+                              labelText: 'Student ID',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 15),
+                          DropdownButtonFormField<String>(
+                            value: _selectedSubject,
+                            decoration: const InputDecoration(
+                              labelText: 'Course Name',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: subjects.map((String subject) {
+                              return DropdownMenuItem(
+                                value: subject,
+                                child: Text(subject),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedSubject = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 15),
+                          DropdownButtonFormField<String>(
+                            value: _selectedSemester,
+                            decoration: const InputDecoration(
+                              labelText: 'Semester No',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: semesters.map((String sem) {
+                              return DropdownMenuItem(
+                                value: sem,
+                                child: Text(sem),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedSemester = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 15),
+                          DropdownButtonFormField<String>(
+                            value: _selectedCreditHour,
+                            decoration: const InputDecoration(
+                              labelText: 'Credit Hours',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: creditHours.map((String ch) {
+                              return DropdownMenuItem(
+                                value: ch,
+                                child: Text(ch),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedCreditHour = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 15),
+                          TextField(
+                            controller: _marksController,
+                            decoration: const InputDecoration(
+                              labelText: 'Marks',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                              onPressed: _isLoading ? null : _submitData,
+                              child: const Text('Submit Grade', style: TextStyle(fontSize: 16)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  const Text(
+                    'Submitted Grades',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  _fetchedData.isEmpty
+                      ? const Text("No data available")
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _fetchedData.length,
+                          itemBuilder: (context, index) {
+                            final item = _fetchedData[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                title: Text("Course: ${item['course_name']}"),
+                                subtitle: Text(
+                                  "ID: ${item['user_id']}\n"
+                                  "Semester: ${item['semester_no']} | Credit Hours: ${item['credit_hours']} | Marks: ${item['marks']}",
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            ),
+    );
+  }
+}
