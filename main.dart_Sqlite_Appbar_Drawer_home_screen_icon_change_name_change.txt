@@ -1,0 +1,153 @@
+import 'package:flutter/material.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+import 'home.dart'; // 👈 Import the new screen
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'SQLite Text Storage',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const MyHomePage(title: 'SQLite TextField Example'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final TextEditingController _controller = TextEditingController();
+  List<String> _storedTexts = [];
+  Database? _database;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDatabase();
+  }
+
+  Future<void> _initDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'text_data.db');
+
+    _database = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE texts(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT
+          )
+        ''');
+      },
+    );
+
+    _fetchStoredTexts();
+  }
+
+  Future<void> _insertText(String text) async {
+    await _database?.insert('texts', {'content': text});
+    _controller.clear();
+    _fetchStoredTexts();
+  }
+
+  Future<void> _fetchStoredTexts() async {
+    final List<Map<String, dynamic>> maps = await _database!.query('texts');
+    setState(() {
+      _storedTexts = maps.map((map) => map['content'] as String).toList();
+    });
+  }
+
+  void _handleSubmit() {
+    String inputText = _controller.text.trim();
+    if (inputText.isNotEmpty) {
+      _insertText(inputText);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Paper'),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.deepPurple,
+              ),
+              child: Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home Screen'),
+              onTap: () {
+                Navigator.pop(context); // close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: <Widget>[
+            TextField(
+              controller: _controller,
+              decoration: const InputDecoration(
+                labelText: 'Enter something',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _handleSubmit,
+              child: const Text('Submit'),
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              'Stored Data:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _storedTexts.length,
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(_storedTexts[index]),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

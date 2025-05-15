@@ -1,0 +1,49 @@
+import 'package:flutter/material.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home Screen'),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Expanded(
+              flex: 2,
+              child: ListView(
+                children: const [
+                  ListTile(
+                    title: Text('1 - Mobile App Development (Sir. Nabeel)'),
+                  ),
+                  ListTile(
+                    title: Text('2 - Information Security (Mam. Kashifa)'),
+                  ),
+                  ListTile(
+                    title: Text('3 - Database (Sir. Khalid)'),
+                  ),
+                  ListTile(
+                    title: Text('4 - AI (Sir. Shahzad)'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              flex: 1,
+              child: Image.asset(
+                'assets/food.jpeg', // Corrected path (avoid double slashes)
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
